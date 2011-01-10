@@ -146,7 +146,7 @@ sub _generate_tweet {
 				for (@parts) {
 					next if ref $_ eq 'SCALAR';
 					my $original_part = $_;
-					$_ =~ s/($keyword)/$hash$1/i;
+					$_ =~ s/($keyword)/$marker$1/i;
 					if ($_ ne $original_part) {
 						$found_in_parts = 1;
 						last;
