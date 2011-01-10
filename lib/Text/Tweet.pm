@@ -10,7 +10,7 @@ use Text::Trim;
   
   my $tweeter = new Text::Tweet({
     maxlen => 140,
-    hash => '#',
+    marker => '#',
     hashtags_at_end => 0,
     keywords => [ 'Perl', 'Twitter', 'Facebook', 'Private' ],
   });
@@ -51,13 +51,13 @@ has maxlen => (
 	default => sub { 140 },
 );
 
-has hash => (
+has marker => (
 	is => 'ro',
 	default => sub { '#' },
 );
 
 # TODO
-has hash_re => (
+has marker_re => (
 	is => 'ro',
 	default => sub { '\#' },
 );
@@ -126,19 +126,19 @@ sub _generate_tweet {
 	
 	my @newparts;
 	my @used_keywords;
-	my $hash = $self->hash;
-	my $hash_re = $self->hash_re;
+	my $marker = $self->marker;
+	my $marker_re = $self->marker_re;
 	for my $keyword (@keywords) {
 
 		if (!grep { lc($_) eq lc($keyword) } @used_keywords) {
 			push @used_keywords, $keyword;
 
 			my $count = parts_length(@parts,@newparts);			
-			last if $count + 1 + length($hash) > $self->maxlen;
+			last if $count + 1 + length($marker) > $self->maxlen;
 
 			my $hkeyword = lc($keyword);
 			$hkeyword =~ s/[^\w]//ig;
-			$hkeyword = $hash.$hkeyword;
+			$hkeyword = $marker.$hkeyword;
 
 			my $found_in_parts = 0;
 			
