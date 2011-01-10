@@ -2,6 +2,49 @@ package Text::Tweet;
 # ABSTRACT: Optimize a tweet based on given keywords
 
 use Moo;
+use Text::Trim;
+
+=head1 SYNOPSIS
+
+  use Text::Tweet;
+  
+  my $tweeter = new Text::Tweet({
+    maxlen => 140,
+    hash => '#',
+    hashtags_at_end => 0,
+    keywords => [ 'Perl', 'Twitter', 'Facebook', 'Private' ],
+  });
+  
+  my $tweet = $tweeter->make(
+    'This is my Perl Twitter Facebook Tweet',
+    \'http://some.url/'
+  );
+  # This is my #Perl #Twitter #Facebook Tweet http://some.url/ #private
+
+  my $next_tweet = $tweeter->make_without_keywords(
+    'This is my Perl Twitter Facebook Tweet',
+    \'http://some.url/',
+    [ 'Tweet' ]
+  );
+  # This is my Perl Twitter Facebook #Tweet http://some.url/
+
+  my $other_tweeter = new Text::Tweet({
+    hashtags_at_end => 1,
+  });
+
+  my $other_tweet = $other_tweeter->make(
+    'This is my Perl Twitter Facebook Tweet',
+    \'http://some.url/',
+    [ 'Perl', 'Twitter', 'Facebook' ]
+  );
+  # This is my Perl Twitter Facebook Tweet http://some.url/ #perl #twitter #facebook
+
+=head1 DESCRIPTION
+
+This package is nothing more than a little helper for making a more optimized tweet. It is supposed to be part of some bigger application,
+for example for automatic Tweet generation out of RSS, or integrated via Ajax on a webpage to offer more effective tweets for the user.
+
+=cut
 
 has maxlen => (
 	is => 'ro',
@@ -13,6 +56,7 @@ has hash => (
 	default => sub { '#' },
 );
 
+# TODO
 has hash_re => (
 	is => 'ro',
 	default => sub { '\#' },
@@ -23,44 +67,94 @@ has hashtags_at_end => (
 	default => sub { 0 },
 );
 
+has keywords => (
+	is => 'ro',
+	default => sub {[]},	
+);
+
+# TODO - mappings
+has mappings => (
+	is => 'ro',
+	default => sub {{}},
+);
+
 sub make_tweet {
 	my ( $self, $text, $url, $keywords ) = @_;
-	
-	my @keywords = @{$keywords};
+	warn '['.__PACKAGE__.'] This function is DEPRECATED, use ->make($text,\$url,\@keywords)'."\n";
+	return $self->make($text,\$url,$keywords);
+}
 
-	my $part = $text;
-	my @parts = split(/[\n\r\t ]+/,$text);
-	shift @parts if !$parts[0];
-	my $url_count = 0;
-	$url_count += length($url) + 1 if $url;
+sub make {
+	my $self = shift;
+	return $self->_generate_tweet( $self->keywords, @_ );
+}
+
+sub make_without_keywords { shift->_generate_tweet(@_) }
+
+sub parts_length {
+	my @parts;
+	for (@_) {
+		if (ref $_ eq 'SCALAR') {
+			push @parts, ${$_};
+		} else {
+			push @parts, $_;
+		}
+	}
+	length(join(' ',@parts));
+}
+
+sub _generate_tweet {
+	my $self = shift;
+
+	my @keywords;
+	my @parts;
+
+	for my $part (@_) {
+		my $newpart;
+		if (ref $part eq 'ARRAY') {
+			push @keywords, @{$part};
+		} elsif (ref $part eq 'HASH') {
+			# TODO - mappings
+		} elsif (ref $part eq 'SCALAR') {
+			my $scalar_newpart = \trim(join(' ',split(/[\n\r\t ]+/,${$part})));
+			$newpart = $scalar_newpart if ${$scalar_newpart};
+		} else {
+			$newpart = trim(join(' ',split(/[\n\r\t ]+/,scalar $part)));
+		}
+		push @parts, $newpart if $newpart;
+	}
+	
 	my @newparts;
 	my @used_keywords;
 	my $hash = $self->hash;
 	my $hash_re = $self->hash_re;
 	for my $keyword (@keywords) {
 
-		my $hkeyword = lc($keyword);
-		$hkeyword =~ s/[^\w]//ig;
-		$hkeyword = $hash.$hkeyword;
+		if (!grep { lc($_) eq lc($keyword) } @used_keywords) {
+			push @used_keywords, $keyword;
 
-		my $count = length(join(' ',@parts,@newparts)) + $url_count;
+			my $count = parts_length(@parts,@newparts);			
+			last if $count + 1 + length($hash) > $self->maxlen;
 
-		if (!grep { lc($_) eq lc($hkeyword) } @used_keywords) {
-			push @used_keywords, $hkeyword;
-			
-			my $push_to_end = 0;
+			my $hkeyword = lc($keyword);
+			$hkeyword =~ s/[^\w]//ig;
+			$hkeyword = $hash.$hkeyword;
+
+			my $found_in_parts = 0;
 			
 			if (!$self->hashtags_at_end) {
-				my $current_text = join(' ',@parts);
-				$current_text =~ s/($keyword)/$hash$1/i;
-				if ($current_text ne join(' ',@parts)) {
-					@parts = split(/ /,$current_text);
-				} else {
-					$push_to_end = 1;
+				for (@parts) {
+					next if ref $_ eq 'SCALAR';
+					my $original_part = $_;
+					$_ =~ s/($keyword)/$hash$1/i;
+					if ($_ ne $original_part) {
+						$found_in_parts = 1;
+						last;
+					}
 				}
 			}
 			
-			if ($push_to_end || $self->hashtags_at_end) {
+			if ($self->hashtags_at_end || ( !$self->hashtags_at_end && !$found_in_parts ) ) {
 				if ($count + 1 + length($hkeyword) <= $self->maxlen) {
 					push @newparts, $hkeyword;
 				}
@@ -69,10 +163,17 @@ sub make_tweet {
 		}
 
 	}
-	push @parts, $url if $url;
+	for (@parts) { $_ = ${$_} if (ref $_ eq 'SCALAR') };
 	push @parts, @newparts;
 	
 	return join(" ",@parts);
 }
+
+
+=head1 CONTRIBUTORS
+
+L<edenc|http://search.cpan.org/~edenc> - giving API design hints
+
+=cut
 
 1;
