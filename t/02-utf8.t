@@ -30,6 +30,11 @@ for (
 		[ "இங்கு" ],
 		"நாமமது தமிழரெனக் கொண்டு #இங்கு வாழ்ந்திடுதல் நன்றோ? சொல்லீர்! http://www.perl.org/"
 	],
+    [
+        [ "日本語でOKかなカナ！？", \"http://www.perl.org/" ],
+        [ "日本語" ],
+        "#日本語でOKかなカナ！？ http://www.perl.org/"
+    ],
 ) {
 	my ( $textparts, $keywords, $result ) = @{$_}; $cnt++;
 	is($utf8_tweeter->make($keywords,@{$textparts}),$result,"Checking result of ".$cnt.". test.");
