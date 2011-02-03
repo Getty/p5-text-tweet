@@ -1,6 +1,8 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	- Fixed requirements
+	- Tuned keyword cleaning regexp
 
 0.003     2011-01-10 22:14:41 Europe/Berlin
 

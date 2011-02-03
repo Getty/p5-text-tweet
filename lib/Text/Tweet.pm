@@ -137,7 +137,7 @@ sub _generate_tweet {
 			last if $count + 1 + length($marker) > $self->maxlen;
 
 			my $hkeyword = lc($keyword);
-			$hkeyword =~ s/[^\w]//ig;
+			$hkeyword =~ s/[^\w]|_//ig;
 			$hkeyword = $marker.$hkeyword;
 
 			my $found_in_parts = 0;
